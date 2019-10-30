@@ -473,11 +473,13 @@ void ModuleRegister()
 			case CURLOPT_WRITEDATA:
 			case CURLOPT_XFERINFODATA:
 				// Pointer
+				void pValue = NULL;
 				break;
 				
 			case CURLOPT_HTTPPOST:
 				// Struct (curl_httppost)
 				// curl_httppost* pValue;
+				void pValue = NULL;
 				break;
 				
 			case CURLOPT_HTTP200ALIASES:
@@ -491,6 +493,7 @@ void ModuleRegister()
 			case CURLOPT_RESOLVE:
 				// Struct (curl_slist)
 				// curl_slist* pValue;
+				void pValue = NULL;
 				break;
 				
 			case CURLOPT_CURLU:
@@ -511,6 +514,7 @@ void ModuleRegister()
 			case CURLOPT_RESOLVER_START_DATA:
 			case CURLOPT_HEADEROPT:
 				// Unknown (void)
+				void pValue = NULL;
 				break;		
 		};
 
