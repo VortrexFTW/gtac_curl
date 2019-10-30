@@ -57,6 +57,7 @@ string(REGEX MATCH "#define LIBCURL_VERSION_NUM 0x[0-9a-fA-F]+"
   CURL_VERSION_NUM ${CURL_VERSION_H_CONTENTS})
 string(REGEX REPLACE "[^0]+0x" "" CURL_VERSION_NUM ${CURL_VERSION_NUM})
 
+set(BUILD_TESTING OFF)
 
 # Setup package meta-data
 # SET(PACKAGE "curl")
@@ -72,9 +73,9 @@ set(OS "\"${CMAKE_SYSTEM_NAME}\"")
 include_directories(${CURL_SOURCE_DIR}/include)
 
 option(CURL_WERROR "Turn compiler warnings into errors" OFF)
-option(PICKY_COMPILER "Enable picky compiler options" ON)
-option(BUILD_CURL_EXE "Set to ON to build curl executable." ON)
-option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+option(PICKY_COMPILER "Enable picky compiler options" OFF)
+option(BUILD_CURL_EXE "Set to ON to build curl executable." OFF)
+option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 option(ENABLE_ARES "Set to ON to enable c-ares support" OFF)
 if(WIN32)
   option(CURL_STATIC_CRT "Set to ON to build libcurl with static CRT on Windows (/MT)." OFF)
@@ -1170,7 +1171,7 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
-  add_subdirectory(tests)
+  #add_subdirectory(tests)
 endif()
 
 # Helper to populate a list (_items) with a label when conditions (the remaining
@@ -1267,8 +1268,8 @@ set(CONFIGURE_OPTIONS       "")
 set(CPPFLAG_CURL_STATICLIB  "")
 set(CURLVERSION             "${CURL_VERSION}")
 if(BUILD_SHARED_LIBS)
-  set(ENABLE_SHARED         "yes")
-  set(ENABLE_STATIC         "no")
+  set(ENABLE_SHARED         "no")
+  set(ENABLE_STATIC         "yes")
 else()
   set(ENABLE_SHARED         "no")
   set(ENABLE_STATIC         "yes")
