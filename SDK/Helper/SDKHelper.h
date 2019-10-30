@@ -413,6 +413,13 @@ namespace SDK
 				SDK_PROPAGATE_ERROR;
 		}
 
+		inline void CheckFunction(size_t Index, IFunction** Value)
+		{
+			//virtual bool CheckFunction(size_t Index, IFunction** ppFunction) = 0;
+			if (!m_pNativeState->CheckFunction(Index, Value))
+				SDK_PROPAGATE_ERROR;
+		}
+
 		inline const char* CheckString(size_t Index, size_t* pLength = nullptr)
 		{
 			const char* psz = m_pNativeState->CheckString(Index, pLength);
@@ -420,12 +427,6 @@ namespace SDK
 				SDK_PROPAGATE_ERROR;
 			return psz;
 		}
-		
-		inline void CheckFunction(size_t Index, IFunction& Value)
-		{
-			if (!m_pNativeState->CheckFunction(Index, Value))
-				SDK_PROPAGATE_ERROR;
-		}		
 
 		template<class T, Class& Class> inline T* CheckThis()
 		{
