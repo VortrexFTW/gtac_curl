@@ -2,10 +2,10 @@
 #include "pch.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <GalacticInterfaces.h>
-#include <GalacticStrongPtr.h>
+#include <SDKHelper.h>
 
 #include <curl.h>
+#include <easy.h>
 
 // The modules internal name (Also used for the namespace name)
 MODULE_MAIN("curl");
