@@ -432,7 +432,6 @@ namespace SDK
 			m_pNativeState->CheckClass(Class, Index, Null, BaseObject);
 			if (!BaseObject)
 				SDK_PROPAGATE_ERROR;
-			return BaseObject;
 		}
 
 		template<class T, Class& Class> inline T* CheckThis()
