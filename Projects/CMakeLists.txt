@@ -1,2 +1,2 @@
 add_subdirectory(curl)
-add_subdirectory(gtac_curl)
+add_subdirectory(mod_curl)
