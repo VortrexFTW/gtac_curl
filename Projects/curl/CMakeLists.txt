@@ -212,7 +212,7 @@ if(NOT PERL_FOUND)
   set(BUILD_TESTING OFF)
 endif()
 if(ENABLE_MANUAL)
-  set(USE_MANUAL ON)
+  set(USE_MANUAL OFF)
 endif()
 
 # We need ansi c-flags, especially on HP

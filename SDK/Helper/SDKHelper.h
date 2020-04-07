@@ -82,6 +82,9 @@ public:
 	Galactic3D::Strong<Galactic3D::Interfaces::IModuleInterface> m_pModuleInterface;
 	Galactic3D::Strong<Galactic3D::Interfaces::IArgumentFactory> m_pArgumentFactory;
 
+	Galactic3D::Strong<Galactic3D::Interfaces::IScripting> m_pScripting;
+	Galactic3D::Strong<Galactic3D::Interfaces::IDefineHandlers> m_pDefineHandlers;
+
 	Galactic3D::Strong<Galactic3D::Interfaces::IReflectedNamespace> m_pNamespace;
 };
 
@@ -92,20 +95,38 @@ static CModule* g_pModule;
 
 inline void* RegisterModule(void*, Galactic3D::Interfaces::IModuleInterface* pModuleInterface, const char* pszModuleName)
 {
-	GALACTIC_CALL(pModuleInterface->SetInternalName(pszModuleName));
-
 	CModule* pModule = new CModule;
-	pModule->m_pModuleInterface = pModuleInterface;
 
-	g_pModule = pModule;
+	try
+	{
+		GALACTIC_CALL(pModuleInterface->SetInternalName(pszModuleName));
 
-	GALACTIC_CALL(pModuleInterface->CreateInstance(Galactic3D::Interfaces::ID_ArgumentFactory, (void**)&pModule->m_pArgumentFactory));
+		pModule->m_pModuleInterface = pModuleInterface;
 
-	GALACTIC_CALL(pModuleInterface->GetNamespace(&pModule->m_pNamespace));
+		g_pModule = pModule;
 
-	ModuleRegister();
+		GALACTIC_CALL(pModuleInterface->CreateInstance(Galactic3D::Interfaces::ID_ArgumentFactory, (void**)&pModule->m_pArgumentFactory));
 
-	return pModule;
+		GALACTIC_CALL(pModuleInterface->GetScripting(&pModule->m_pScripting));
+		GALACTIC_CALL(pModule->m_pScripting->GetDefineHandlers(&pModule->m_pDefineHandlers));
+
+		GALACTIC_CALL(pModuleInterface->GetNamespace(&pModule->m_pNamespace));
+
+		ModuleRegister();
+
+		return pModule;
+	}
+	catch (GException& e)
+	{
+		pModuleInterface->SetError(e.what());
+	}
+	catch (std::nullptr_t)
+	{
+	}
+
+	delete pModule;
+
+	return nullptr;
 }
 
 #define MODULE_MAIN(MODULE_NAME) \
@@ -123,6 +144,33 @@ namespace SDK
 	inline void AddProperty(const char* pszName, Galactic3D::Interfaces::IScriptFunctionCallback pGetter, Galactic3D::Interfaces::IScriptFunctionCallback pSetter = nullptr, void* pUser = nullptr)
 	{
 		GALACTIC_CALL(g_pModule->m_pNamespace->AddProperty(pUser, pszName, 0, pGetter, pSetter));
+	}
+
+	inline void Define(const char* pszName, int32_t Value)
+	{
+		GALACTIC_CALL(g_pModule->m_pDefineHandlers->DefineSigned(pszName, Value));
+	}
+
+	inline void Define(const char* pszName, uint32_t Value)
+	{
+		GALACTIC_CALL(g_pModule->m_pDefineHandlers->DefineUnsigned(pszName, Value));
+	}
+
+	inline void Log(Galactic3D::Interfaces::LogPriority Priority, const char* psz)
+	{
+		GALACTIC_CALL(g_pModule->m_pModuleInterface->Log((uint32_t)Priority, psz));
+	}
+
+	inline void Log(const char* psz)
+	{
+		Log(Galactic3D::Interfaces::LogPriority::Info, psz);
+	}
+
+	inline void Fatal(const char* pszReason)
+	{
+		g_pModule->m_pModuleInterface->SetError(pszReason);
+
+		throw nullptr;
 	}
 
 	class Class
@@ -187,15 +235,6 @@ namespace SDK
 		inline NullValue()
 		{
 			GALACTIC_CALL(g_pModule->m_pArgumentFactory->CreateNull(&m_pArgument));
-		}
-	};
-
-	class BooleanValue : public Argument
-	{
-	public:
-		inline BooleanValue(bool bValue)
-		{
-			GALACTIC_CALL(g_pModule->m_pArgumentFactory->CreateBoolean(&m_pArgument, bValue));
 		}
 	};
 
@@ -419,19 +458,6 @@ namespace SDK
 			if (!psz)
 				SDK_PROPAGATE_ERROR;
 			return psz;
-		}
-
-		inline void CheckFunction(size_t Index, IFunction& Function)
-		{
-			if (!m_pNativeState->CheckFunction(Index, Function))
-				SDK_PROPAGATE_ERROR;
-		}
-		
-		inline void CheckClass(size_t Index, IReflectedClass* Class, bool Null, IBaseObject& BaseObject)
-		{
-			m_pNativeState->CheckClass(Class, Index, Null, BaseObject);
-			if (!BaseObject)
-				SDK_PROPAGATE_ERROR;
 		}
 
 		template<class T, Class& Class> inline T* CheckThis()
