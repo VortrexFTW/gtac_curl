@@ -32,7 +32,7 @@ class CCurl
 
 class CCurlMime {
 	public:
-		inline CCurlMime(curl_mime* pCurlMime) : m_pCurlMime(CURL* pCurl) {
+		inline CCurlMime(CURL* pCurl) : m_pCurlMime() {
 			m_pCurlMime = curl_mime_init(pCurl);
 		}
 		
@@ -48,7 +48,7 @@ class CCurlMime {
 
 class CCurlMimePart {
 	public:
-		inline CCurlMimePart(curl_mimepart* pCurlMimePart) : m_pCurlMimePart(curl_mime* pCurlMime) {
+		inline CCurlMimePart(curl_mime* pCurlMime) : m_pCurlMimePart() {
 			m_pCurlMimePart = curl_mime_addpart(pCurlMime);
 		}
 		
@@ -60,6 +60,22 @@ class CCurlMimePart {
 		
 		void Data(const char*, size_t);
 		void Name(const char*);
+};
+
+class CCurlList {
+public:
+	inline CCurlList(curl_slist *pCurlList) : m_pCurlList() {
+		m_pCurlList = pCurlList;
+	}
+
+	inline ~CCurlList() {
+		Free();
+	}
+
+	curl_slist *m_pCurlList;
+
+	void Free();
+	void Append(const char*);
 };
 
 void CCurl::Free() {
@@ -94,6 +110,12 @@ void CCurlMimePart::Name(const char* szName) {
 	}
 }
 
+void CCurlList::Append(const char* szName) {
+	if (m_pCurlList != nullptr) {
+		curl_slist_append(m_pCurlList, szName);
+	}
+}
+
 void ModuleRegister()
 {
 	g_CurlClass = SDK::Class("Curl");
@@ -107,7 +129,7 @@ void ModuleRegister()
 
 		SDK::State State(pState);
 		
-		pCurl = curl_easy_init();
+		CURL* pCurl = curl_easy_init();
 		
 		SDK::ClassValue<CCurl, g_CurlClass> Value(new CCurl(pCurl));	
 
@@ -124,7 +146,7 @@ void ModuleRegister()
 		auto pThis = State.CheckThis<CCurl, g_CurlClass>();
 		CURL* pCurl = pThis->m_pCurl;
 
-		pCurlMime = curl_mime_init(pCurl);
+		curl_mime* pCurlMime = curl_mime_init(pCurl);
 		SDK::ClassValue<CCurlMime, g_CurlMimeClass> Value(new CCurlMime(pCurlMime));	
 		return true;
 
@@ -139,8 +161,7 @@ void ModuleRegister()
 		auto pThis = State.CheckThis<CCurlMime, g_CurlMimeClass>();
 		curl_mime* pCurlMime = pThis->m_pCurlMime;
 
-		pCurlMimePart = curl_mime_addpart(pCurlMime);
-		SDK::ClassValue<CCurlMimePart, g_CurlMimePartClass> Value(new CCurlMimePart(pCurlMimePart));	
+		SDK::ClassValue<CCurlMimePart, g_CurlMimePartClass> Value(new CCurlMimePart(pThis->m_pCurlMime));
 		return true;
 
 		SDK_ENDTRY;
@@ -151,7 +172,7 @@ void ModuleRegister()
 
 		SDK::State State(pState);
 
-		auto pThis = State.CheckThis<CCurlMime, g_CurlMimeClass>();
+		auto pThis = State.CheckThis<CCurlMimePart, g_CurlMimePartClass>();
 		curl_mimepart* pCurlMimePart = pThis->m_pCurlMimePart;
 		
 		const char* szData = State.CheckString(0);
@@ -170,7 +191,7 @@ void ModuleRegister()
 
 		SDK::State State(pState);
 
-		auto pThis = State.CheckThis<CCurlMime, g_CurlMimeClass>();
+		auto pThis = State.CheckThis<CCurlMimePart, g_CurlMimePartClass>();
 		curl_mimepart* pCurlMimePart = pThis->m_pCurlMimePart;
 		
 		const char* szName = State.CheckString(0);
@@ -189,12 +210,10 @@ void ModuleRegister()
 		int iValueIndex = 1;
 
 		auto pThis = State.CheckThis<CCurl, g_CurlClass>();
-		CURL* pCurl = pThis->pCurl;
+		CURL* pCurl = pThis->m_pCurl;
 		
 		int iOptID;
 		State.CheckNumber(0, iOptID);	
-
-		auto pValue = NULL;
 		
 		switch(iOptID) {
 			case CURLOPT_ABSTRACT_UNIX_SOCKET:
@@ -280,22 +299,24 @@ void ModuleRegister()
 			case CURLOPT_USERNAME:
 			case CURLOPT_USERPWD:
 			case CURLOPT_XOAUTH2_BEARER: {
+					const char* pValue;
 					pValue = State.CheckString(iValueIndex);
+					curl_easy_setopt(pCurl, (CURLoption)iOptID, pValue);
 				}
 				break;
 				
 			case CURLOPT_STREAM_DEPENDS:
-			case CURLOPT_STREAM_DEPENDS_E: {
-					CURL* pValue = State.CheckClass(iValueIndex, g_CurlClass);
-				}
-				break;
+			//case CURLOPT_STREAM_DEPENDS_E: {
+			//		CURL* pValue = State.CheckClass(iValueIndex, g_CurlClass);
+			//	}
+			//	break;
 				
-			case CURLOPT_SHARE: {
-					// Curl Shares (CURLSH)
-					// CURLSH* pValue;
-					pValue = NULL;
-				}
-				break;
+			//case CURLOPT_SHARE: {
+			//		// Curl Shares (CURLSH)
+			//		// CURLSH* pValue;	
+			//		pValue = NULL;
+			//	}
+			//	break;
 				
 			case CURLOPT_TIMEVALUE_LARGE:
 			case CURLOPT_INFILESIZE_LARGE:
@@ -304,16 +325,19 @@ void ModuleRegister()
 			case CURLOPT_MAX_SEND_SPEED_LARGE:
 			case CURLOPT_POSTFIELDSIZE_LARGE:
 			case CURLOPT_RESUME_FROM_LARGE: {
+					uint32_t pValue;
 					State.CheckNumber(iValueIndex, pValue);
+					curl_easy_setopt(pCurl, (CURLoption)iOptID, pValue);
 				}
 				break;
 				
-			case CURLOPT_STDERR:
-				// File
-				// Maybe use CheckStream for this?
-				pValue = NULL;
-				break;
+			//case CURLOPT_STDERR:
+			//	// File
+			//	// Maybe use CheckStream for this?
+			//	pValue = NULL;
+			//	break;
 				
+			/*
 			case CURLOPT_CHUNK_BGN_FUNCTION:
 			case CURLOPT_CHUNK_END_FUNCTION:
 			case CURLOPT_CLOSESOCKETFUNCTION:
@@ -336,10 +360,11 @@ void ModuleRegister()
 			case CURLOPT_XFERINFOFUNCTION:
 			case CURLOPT_PROGRESSFUNCTION:
 			case CURLOPT_SSL_CTX_FUNCTION: {
-					// Functions
+					
 					State.CheckFunction(iValueIndex, pValue);
 				}
 				break;
+			*/
 				
 			case CURLOPT_PORT:
 			case CURLOPT_CONNECTTIMEOUT:
@@ -462,47 +487,50 @@ void ModuleRegister()
 			case CURLOPT_UPLOAD_BUFFERSIZE:
 			case CURLOPT_USE_SSL:
 			case CURLOPT_VERBOSE: {
+					uint32_t pValue;
 					State.CheckNumber(iValueIndex, pValue);
+					curl_easy_setopt(pCurl, (CURLoption)iOptID, pValue);
 				}
 				break;
 				
-			case CURLOPT_MIMEPOST: {
-					// Mime (via curl_mime_init)
-					State.CheckClass(g_CurlMimeClass, iValueIndex, false, pValue);
-				}
-				break;
+			//case CURLOPT_MIMEPOST: {
+			//		// Mime (via curl_mime_init)
+			//		State.CheckClass(g_CurlMimeClass, iValueIndex, false, pValue);
+			//	}
+			//	break;
 				
-			case CURLOPT_CHUNK_DATA:
-			case CURLOPT_CLOSESOCKETDATA:
-			case CURLOPT_WRITEDATA:
-			case CURLOPT_XFERINFODATA: {
-					// Pointer
-					pValue = NULL;
-				}
-				break;
+			//case CURLOPT_CHUNK_DATA:
+			//case CURLOPT_CLOSESOCKETDATA:
+			//case CURLOPT_WRITEDATA:
+			//case CURLOPT_XFERINFODATA: {
+			//		// Pointer
+			//		pValue = NULL;
+			//	}
+			//	break;
 				
-			case CURLOPT_HTTPPOST: {
-					// Struct (curl_httppost)
-					// curl_httppost* pValue;
-					pValue = NULL;
-				}
-				break;
+			//case CURLOPT_HTTPPOST: {
+			//		// Struct (curl_httppost)
+			//		curl_httppost* pValue;
+			//		pValue = pValue;
+			//	}
+			//	break;
 				
-			case CURLOPT_HTTP200ALIASES:
-			case CURLOPT_MAIL_RCPT:
-			case CURLOPT_POSTQUOTE:
-			case CURLOPT_PREQUOTE:
-			case CURLOPT_PROXYHEADER:
-			case CURLOPT_TELNETOPTIONS:
-			case CURLOPT_HTTPHEADER:
-			case CURLOPT_QUOTE:
-			case CURLOPT_RESOLVE: {
-					// Struct (curl_slist)
-					// curl_slist* pValue;
-					pValue = NULL;
-				}
-				break;
+			//case CURLOPT_HTTP200ALIASES:
+			//case CURLOPT_MAIL_RCPT:
+			//case CURLOPT_POSTQUOTE:
+			//case CURLOPT_PREQUOTE:
+			//case CURLOPT_PROXYHEADER:
+			//case CURLOPT_TELNETOPTIONS:
+			//case CURLOPT_HTTPHEADER:
+			//case CURLOPT_QUOTE:
+			//case CURLOPT_RESOLVE: {
+			//		// Struct (curl_slist)
+			//		// curl_slist* pValue;
+			//		pValue = NULL;
+			//	}
+			//	break;
 				
+			/*
 			case CURLOPT_CURLU:
 			case CURLOPT_DEBUGDATA:
 			case CURLOPT_FNMATCH_DATA:
@@ -524,11 +552,8 @@ void ModuleRegister()
 					pValue = NULL;
 				}
 				break;		
+			*/
 		};
-
-		if(pValue != NULL) {
-			curl_easy_setopt(pCurl, iOptID, pValue);
-		}
 		
 		return true;
 
@@ -541,7 +566,7 @@ void ModuleRegister()
 		SDK::State State(pState);
 
 		auto pThis = State.CheckThis<CCurl, g_CurlClass>();
-		CURL* pCurlPtr = pThis->pCurl;
+		CURL* pCurlPtr = pThis->m_pCurl;
 
 		curl_easy_perform(pCurlPtr);
 		return true;
@@ -555,7 +580,7 @@ void ModuleRegister()
 		SDK::State State(pState);
 
 		auto pThis = State.CheckThis<CCurl, g_CurlClass>();
-		CURL* pCurl = pThis->pCurl;
+		CURL* pCurl = pThis->m_pCurl;
 
 		curl_easy_reset(pCurl);
 		return true;
@@ -563,13 +588,14 @@ void ModuleRegister()
 		SDK_ENDTRY;
 	});
 
+	/*
 	g_CurlClass.RegisterFunction("getInfo", [](Galactic3D::Interfaces::INativeState* pState, int32_t argc, void* pUser) {
 		SDK_TRY;
 
 		SDK::State State(pState);
 
 		auto pThis = State.CheckThis<CCurl, g_CurlClass>();
-		CURL* pCurl = pThis->pCurl;
+		CURL* pCurl = pThis->m_pCurl;
 		
 		int iInfoID;
 		State.CheckNumber(0, iInfoID);
@@ -604,6 +630,7 @@ void ModuleRegister()
 
 		SDK_ENDTRY;
 	});
+	*/
 
 	g_CurlClass.RegisterFunction("escape", [](Galactic3D::Interfaces::INativeState* pState, int32_t argc, void* pUser) {
 		SDK_TRY;
@@ -614,7 +641,7 @@ void ModuleRegister()
 		
 		const char* szURL = State.CheckString(0);
 		
-		char* szEscapedURL = curl_easy_escape(pThis->m_pCurl, szURL, sizeof(szURL))			
+		char* szEscapedURL = curl_easy_escape(pThis->m_pCurl, szURL, sizeof(szURL));
 
 		SDK::StringValue Value(szEscapedURL);
 		State.Return(Value);
@@ -910,7 +937,7 @@ void ModuleRegister()
 	SDK::Define("CURLINFO_CONTENT_LENGTH_UPLOAD_T", CURLINFO_CONTENT_LENGTH_UPLOAD_T);
 	SDK::Define("CURLINFO_CONTENT_TYPE", CURLINFO_CONTENT_TYPE);
 	SDK::Define("CURLINFO_COOKIELIST", CURLINFO_COOKIELIST);
-	SDK::Define("CURLINFO_EFFECTIVE_METHOD", CURLINFO_EFFECTIVE_METHOD);
+	//SDK::Define("CURLINFO_EFFECTIVE_METHOD", CURLINFO_EFFECTIVE_METHOD);
 	SDK::Define("CURLINFO_EFFECTIVE_URL", CURLINFO_EFFECTIVE_URL);
 	SDK::Define("CURLINFO_FILETIME", CURLINFO_FILETIME);
 	SDK::Define("CURLINFO_FILETIME_T", CURLINFO_FILETIME_T);
@@ -933,7 +960,7 @@ void ModuleRegister()
 	SDK::Define("CURLINFO_PRIVATE", CURLINFO_PRIVATE);
 	SDK::Define("CURLINFO_PROTOCOL", CURLINFO_PROTOCOL);
 	SDK::Define("CURLINFO_PROXYAUTH_AVAIL", CURLINFO_PROXYAUTH_AVAIL);
-	SDK::Define("CURLINFO_PROXY_ERROR", CURLINFO_PROXY_ERROR);
+	//SDK::Define("CURLINFO_PROXY_ERROR", CURLINFO_PROXY_ERROR);
 	SDK::Define("CURLINFO_PROXY_SSL_VERIFYRESULT", CURLINFO_PROXY_SSL_VERIFYRESULT);
 	SDK::Define("CURLINFO_REDIRECT_COUNT", CURLINFO_REDIRECT_COUNT);
 	SDK::Define("CURLINFO_REDIRECT_TIME", CURLINFO_REDIRECT_TIME);
