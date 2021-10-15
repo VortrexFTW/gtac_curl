@@ -13,6 +13,7 @@ MODULE_MAIN("curl");
 SDK::Class g_CurlClass;
 SDK::Class g_CurlMimeClass;
 SDK::Class g_CurlMimePartClass;
+SDK::Class g_CurlListClass;
 
 class CCurl
 {
@@ -121,6 +122,7 @@ void ModuleRegister()
 	g_CurlClass = SDK::Class("Curl");
 	g_CurlMimeClass = SDK::Class("CurlMime");
 	g_CurlMimePartClass = SDK::Class("CurlMimePart");
+	g_CurlListClass = SDK::Class("CurlList");
 	
 	// Unfinished!
 	// This will eventually be a complete CURL wrapper.
@@ -200,7 +202,39 @@ void ModuleRegister()
 		return true;
 
 		SDK_ENDTRY;
-	});			
+	});
+
+	g_CurlClass.RegisterFunction("list", [](Galactic3D::Interfaces::INativeState* pState, int32_t argc, void* pUser) {
+		SDK_TRY;
+
+		SDK::State State(pState);
+
+		auto pThis = State.CheckThis<CCurl, g_CurlClass>();
+		CURL* pCurl = pThis->m_pCurl;
+
+		curl_slist* pCurlList;
+		SDK::ClassValue<CCurlList, g_CurlListClass> Value(new CCurlList(pCurlList));
+		return true;
+
+		SDK_ENDTRY;
+	});
+
+	g_CurlListClass.RegisterFunction("append", [](Galactic3D::Interfaces::INativeState* pState, int32_t argc, void* pUser) {
+		SDK_TRY;
+
+		SDK::State State(pState);
+
+		auto pThis = State.CheckThis<CCurlList, g_CurlListClass>();
+		//curl_slist* pCurlList = pThis->m_pCurlList;
+
+		const char* szString = State.CheckString(0);
+
+		pThis->Append(szString);
+
+		return true;
+
+		SDK_ENDTRY;
+		});
 
 	g_CurlClass.RegisterFunction("setOpt", [](Galactic3D::Interfaces::INativeState* pState, int32_t argc, void* pUser) {
 		SDK_TRY;
